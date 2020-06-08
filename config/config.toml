@@ -1,0 +1,4 @@
+[service]
+port = 18788
+event_server = "0.0.0.0:32803"
+event_cluster_id = "test-cluster"
