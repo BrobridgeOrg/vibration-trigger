@@ -104,13 +104,5 @@ func (service *Service) Query(trigger pb.TimerTriggerInfo) error {
 		}
 	}
 
-	// Require body
-	defer resp.Body.Close()
-
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
 	return nil
 }
