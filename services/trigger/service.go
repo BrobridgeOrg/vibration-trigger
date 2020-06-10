@@ -3,7 +3,8 @@ package trigger
 import (
 	"bytes"
 	"crypto/tls"
-	"io/ioutil"
+	"time"
+	//"io/ioutil"
 	"net/http"
 	"strings"
 	app "timer-trigger/app/interface"
@@ -15,8 +16,9 @@ import (
 )
 
 type Service struct {
-	app       app.AppImpl
-	Transport *http.Transport
+	app        app.AppImpl
+	Transport  *http.Transport
+	retryCount int64
 }
 
 func CreateService(a app.AppImpl) *Service {
@@ -41,34 +43,11 @@ func CreateService(a app.AppImpl) *Service {
 			return
 		}
 
-		timerInfo := trigger.Info
-
-		// Create a request
-		request, err := http.NewRequest(strings.ToUpper(timerInfo.Callback.Method), timerInfo.Callback.Uri, bytes.NewReader([]byte(timerInfo.Payload)))
+		service.retryCount = 1
+		err = service.Query(trigger)
 		if err != nil {
-			return
-		}
-
-		// Preparing header
-		request.Header.Add("Timer-ID", trigger.TimerID)
-		request.Header.Add("Content-Type", "application/json")
-		for key, value := range timerInfo.Callback.Headers {
-			request.Header.Add(key, value)
-		}
-
-		client := http.Client{
-			Transport: service.Transport,
-		}
-		resp, err := client.Do(request)
-		if err != nil {
-			return
-		}
-
-		// Require body
-		defer resp.Body.Close()
-
-		_, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
+			log.Println(err)
+			msg.Ack()
 			return
 		}
 
@@ -80,4 +59,58 @@ func CreateService(a app.AppImpl) *Service {
 	}
 
 	return service
+}
+
+func (service *Service) Query(trigger pb.TimerTriggerInfo) error {
+
+	timerInfo := trigger.Info
+
+	// Create a request
+	request, err := http.NewRequest(strings.ToUpper(timerInfo.Callback.Method), timerInfo.Callback.Uri, bytes.NewReader([]byte(timerInfo.Payload)))
+	if err != nil {
+		// if retry 3 times than return error
+		if service.retryCount > 3 {
+			return err
+		} else {
+			// delay service.retryCount * 3
+			timer := time.NewTimer(time.Duration(service.retryCount*3) * time.Second)
+			<-timer.C
+			service.retryCount++
+			return service.Query(trigger)
+		}
+	}
+
+	// Preparing header
+	request.Header.Add("Timer-ID", trigger.TimerID)
+	request.Header.Add("Content-Type", "application/json")
+	for key, value := range timerInfo.Callback.Headers {
+		request.Header.Add(key, value)
+	}
+
+	client := http.Client{
+		Transport: service.Transport,
+	}
+	_, err = client.Do(request)
+	if err != nil {
+		// if retry 3 times than return error
+		if service.retryCount > 3 {
+			return err
+		} else {
+			// delay service.retryCount * 3
+			timer := time.NewTimer(time.Duration(service.retryCount*3) * time.Second)
+			<-timer.C
+			service.retryCount++
+			return service.Query(trigger)
+		}
+	}
+
+	// Require body
+	defer resp.Body.Close()
+
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	return nil
 }
