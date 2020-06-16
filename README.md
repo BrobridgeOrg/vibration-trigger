@@ -1,4 +1,4 @@
-# Timer Trigger
+# Vibration Trigger
 
 The trigger service will handle callback of timer.
 

@@ -1,9 +1,9 @@
-module timer-trigger
+module vibration-trigger
 
 go 1.13
 
 require (
-	github.com/BrobridgeOrg/timer-api-service v0.0.0-20200608095852-858c7541cc0c
+	github.com/BrobridgeOrg/vibration-api-service v0.0.0-20200616064343-16fe2e380ccb
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/validator/v10 v10.3.0 // indirect

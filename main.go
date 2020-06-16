@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	app "timer-trigger/app"
+	app "vibration-trigger/app"
 )
 
 func init() {

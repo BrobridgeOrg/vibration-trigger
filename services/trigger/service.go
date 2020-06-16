@@ -7,9 +7,9 @@ import (
 	//"io/ioutil"
 	"net/http"
 	"strings"
-	app "timer-trigger/app/interface"
+	app "vibration-trigger/app/interface"
 
-	pb "github.com/BrobridgeOrg/timer-api-service/pb"
+	pb "github.com/BrobridgeOrg/vibration-api-service/pb"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/stan.go"
 	log "github.com/sirupsen/logrus"

@@ -3,8 +3,8 @@ package app
 import (
 	"strconv"
 
-	"timer-trigger/app/eventbus"
-	app "timer-trigger/app/interface"
+	"vibration-trigger/app/eventbus"
+	app "vibration-trigger/app/interface"
 
 	"github.com/nats-io/stan.go"
 	log "github.com/sirupsen/logrus"
