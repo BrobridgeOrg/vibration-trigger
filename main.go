@@ -12,7 +12,7 @@ import (
 func init() {
 
 	// From the environment
-	viper.SetEnvPrefix("TIMER_TRIGGER")
+	viper.SetEnvPrefix("VIBRATION_TRIGGER")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
