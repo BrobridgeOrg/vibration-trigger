@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"time"
+
 	//"io/ioutil"
 	"net/http"
 	"strings"
@@ -31,8 +32,18 @@ func CreateService(a app.AppImpl) *Service {
 		},
 	}
 
+	err := service.InitSubscription()
+	if err != nil {
+		return nil
+	}
+
+	return service
+}
+
+func (service *Service) InitSubscription() error {
+
 	// Send message to specific room
-	ebClient := a.GetEventBus().GetClient()
+	ebClient := service.app.GetEventBus().GetClient()
 	_, err := ebClient.QueueSubscribe("timer.triggered", "trigger", func(msg *stan.Msg) {
 
 		// Unmarshal message
@@ -55,10 +66,10 @@ func CreateService(a app.AppImpl) *Service {
 	}, stan.SetManualAckMode())
 	if err != nil {
 		log.Error(err)
-		return nil
+		return err
 	}
 
-	return service
+	return nil
 }
 
 func (service *Service) Query(trigger pb.TimerTriggerInfo) error {

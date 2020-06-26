@@ -1,25 +1,30 @@
 package eventbus
 
 import (
+	"time"
+
 	nats "github.com/nats-io/nats.go"
 	stan "github.com/nats-io/stan.go"
 	log "github.com/sirupsen/logrus"
 )
 
 type EventBus struct {
-	host            string
-	clusterID       string
-	clientName      string
-	client          stan.Conn
-	connLostHandler stan.ConnectionLostHandler
+	host              string
+	clusterID         string
+	clientName        string
+	natsConn          *nats.Conn
+	client            stan.Conn
+	reconnectHandler  func(natsConn *nats.Conn)
+	disconnectHandler func(natsConn *nats.Conn)
 }
 
-func CreateEventBus(host string, clusterID string, clientName string, handler stan.ConnectionLostHandler) *EventBus {
+func CreateEventBus(host string, clusterID string, clientName string, reconnectHandler func(natsConn *nats.Conn), disconnectHandler func(natsConn *nats.Conn)) *EventBus {
 	return &EventBus{
-		host:            host,
-		clusterID:       clusterID,
-		clientName:      clientName,
-		connLostHandler: handler,
+		host:              host,
+		clusterID:         clusterID,
+		clientName:        clientName,
+		reconnectHandler:  reconnectHandler,
+		disconnectHandler: disconnectHandler,
 	}
 }
 
@@ -31,25 +36,27 @@ func (eb *EventBus) Connect() error {
 		"clusterID":  eb.clusterID,
 	}).Info("Connecting to event server")
 
-	// generater natsconnect
-	nc, err := nats.Connect(eb.host,
-		nats.MaxReconnects(-1),
-		nats.ReconnectHandler(func(natsConn *nats.Conn) {
-			log.Warn("reconnect successed")
-		}),
-	)
-	if err != nil {
-		return err
+	if eb.natsConn == nil {
+		// generater natsconnect
+		nc, err := nats.Connect(eb.host,
+			nats.PingInterval(10*time.Second),
+			nats.MaxPingsOutstanding(3),
+			nats.MaxReconnects(-1),
+			nats.ReconnectHandler(eb.reconnectHandler),
+			nats.DisconnectHandler(eb.disconnectHandler),
+		)
+		if err != nil {
+			return err
+		}
+
+		eb.natsConn = nc
 	}
 
 	// Connect to queue server
 	sc, err := stan.Connect(
 		eb.clusterID,
 		eb.clientName,
-		//stan.NatsURL(eb.host),
-		stan.NatsConn(nc),
-		stan.Pings(10, 3),
-		stan.SetConnectionLostHandler(eb.connLostHandler),
+		stan.NatsConn(eb.natsConn),
 	)
 	if err != nil {
 		return err

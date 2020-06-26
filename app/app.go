@@ -2,11 +2,12 @@ package app
 
 import (
 	"strconv"
+	"time"
 
 	"vibration-trigger/app/eventbus"
 	app "vibration-trigger/app/interface"
 
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"github.com/sony/sonyflake"
@@ -19,6 +20,7 @@ type App struct {
 	eventbus           *eventbus.EventBus
 	connectionListener cmux.CMux
 	grpcServer         *GRPCServer
+	isReady            bool
 }
 
 func CreateApp() *App {
@@ -32,19 +34,43 @@ func CreateApp() *App {
 
 	idStr := strconv.FormatUint(id, 16)
 
-	return &App{
+	a := &App{
 		id:         id,
 		flake:      flake,
 		grpcServer: &GRPCServer{},
-		eventbus: eventbus.CreateEventBus(
-			viper.GetString("service.event_server"),
-			viper.GetString("service.event_cluster_id"),
-			idStr,
-			func(conn stan.Conn, err error) {
-				log.Error("event server was disconnected")
-			},
-		),
 	}
+
+	a.eventbus = eventbus.CreateEventBus(
+		viper.GetString("service.event_server"),
+		viper.GetString("service.event_cluster_id"),
+		idStr,
+		func(natsConn *nats.Conn) {
+
+			for {
+				log.Warn("re-connect to event server")
+
+				// Connect to NATS Streaming
+				err := a.eventbus.Connect()
+				if err != nil {
+					log.Error("Failed to connect to event server")
+					time.Sleep(time.Duration(1) * time.Second)
+					continue
+				}
+
+				a.isReady = true
+
+				break
+			}
+
+			// Re-initializing subscription
+			a.grpcServer.Trigger.InitSubscription()
+		},
+		func(natsConn *nats.Conn) {
+			a.isReady = false
+		},
+	)
+
+	return a
 }
 
 func (a *App) Init() error {
